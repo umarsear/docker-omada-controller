@@ -17,7 +17,7 @@ services:
       - MANAGE_HTTPS_PORT=8043           # tell Omada it's already running HTTPS on 443
       - PORTAL_HTTP_PORT=8088
       - PORTAL_HTTPS_PORT=8843           # if using the portal, align it too
-      - PORT_REDIRECT_DISABLED=true     # disables internal redirects (prevents loop)
+      - PORT_REDIRECT_DISABLED=false     # disables internal redirects (prevents loop)
       - PORT_APP_DISCOVERY=27001
       - PORT_ADOPT_V1=29812
       - PORT_UPGRADE_V1=29813
