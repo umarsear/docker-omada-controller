@@ -14,9 +14,10 @@ services:
       - PUID=508
       - PGID=508
       - MANAGE_HTTP_PORT=8088
-      - MANAGE_HTTPS_PORT=443
+      - MANAGE_HTTPS_PORT=443           # tell Omada it's already running HTTPS on 443
       - PORTAL_HTTP_PORT=8088
-      - PORTAL_HTTPS_PORT=8843
+      - PORTAL_HTTPS_PORT=443           # if using the portal, align it too
+      - PORT_REDIRECT_DISABLED=true     # disables internal redirects (prevents loop)
       - PORT_APP_DISCOVERY=27001
       - PORT_ADOPT_V1=29812
       - PORT_UPGRADE_V1=29813
@@ -31,10 +32,10 @@ services:
       - SSL_KEY_NAME=tls.key
       - TZ=Etc/UTC
     ports:
-      - "8088:8088"
-      - "8043:8043"
-      - "8843:8843"
-      - "27001:27001/udp"
+      - "8088:8088"         # Internal HTTP for Traefik to route to
+      - "8043:8043"         # Optional, if you want direct HTTPS access
+      - "8843:8843"         # Portal access
+      - "27001:27001/udp"   # Device discovery
       - "29810:29810/udp"
       - "29811:29811"
       - "29812:29812"
