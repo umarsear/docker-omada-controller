@@ -9,9 +9,9 @@ services:
         hard: 8192
     stop_grace_period: 60s
     ports:
-      - "8088:8088"
-      - "8043:8043"
-      - "8843:8843"
+      - "8088:8088"     # HTTP fallback
+      - "8043:8043"     # HTTPS interface
+      - "8843:8843"     # Portal HTTPS
       - "27001:27001/udp"
       - "29810:29810/udp"
       - "29811:29811"
@@ -40,10 +40,13 @@ services:
       - SSL_CERT_NAME=tls.crt
       - SSL_KEY_NAME=tls.key
       - TZ=Etc/UTC
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.omada.rule=Host(`omada.yourdomain.com`)"
+      - "traefik.http.routers.omada.entrypoints=websecure"
+      - "traefik.http.routers.omada.tls=true"
+      - "traefik.http.services.omada.loadbalancer.server.port=8043" # internal HTTPS port
+
     volumes:
       - omada-data:/opt/tplink/EAPController/data
       - omada-logs:/opt/tplink/EAPController/logs
-
-volumes:
-  omada-data:
-  omada-logs:
