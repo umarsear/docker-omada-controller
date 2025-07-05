@@ -1,0 +1,76 @@
+services:
+  omada-controller:
+    container_name: omada-controller
+    image: mbentley/omada-controller:5.15
+    restart: unless-stopped
+    ulimits:
+      nofile:
+        soft: 4096
+        hard: 8192
+    stop_grace_period: 60s
+    environment:
+      - PUID=508
+      - PGID=508
+      - MANAGE_HTTP_PORT=8088
+      # KEEP MANAGE_HTTPS_PORT here, but don't expose it to the host
+      - MANAGE_HTTPS_PORT=8043 
+      # KEEP PORTAL_HTTP_PORT/PORTAL_HTTPS_PORT if you use guest portals
+      # and want them to behave correctly *internally* for Omada.
+      - PORTAL_HTTP_PORT=8088
+      - PORTAL_HTTPS_PORT=8843
+      # This is CRITICAL. It tells Omada not to redirect HTTP to its own HTTPS.
+      - PORT_REDIRECT_DISABLED=true 
+      - PORT_APP_DISCOVERY=27001
+      - PORT_ADOPT_V1=29812
+      - PORT_UPGRADE_V1=29813
+      - PORT_MANAGER_V1=29811
+      - PORT_MANAGER_V2=29814
+      - PORT_DISCOVERY=29810
+      - PORT_TRANSFER_V2=29815
+      - PORT_RTTY=29816
+      - SHOW_SERVER_LOGS=true
+      - SHOW_MONGODB_LOGS=false
+      # You can keep these, but Traefik will provide the actual valid cert.
+      # Omada will still serve its self-signed cert on 8043 internally,
+      # but we're telling Traefik to connect to 8088.
+      - SSL_CERT_NAME=tls.crt
+      - SSL_KEY_NAME=tls.key
+      - TZ=Etc/UTC
+    ports:
+      # ONLY expose ports that Traefik *won't* handle,
+      # or that are needed for direct host-to-container communication
+      # for non-web services (e.g., device adoption).
+      #
+      # Traefik will handle the web traffic to 8088 internally.
+      # You do NOT need to map 8088, 8043, or 8843 to host ports if
+      # Traefik is running on the same Docker network as Omada.
+      #
+      # If you keep "8088:8088", it simply means you could also access it
+      # directly via http://your_server_ip:8088 if your firewall allows,
+      # but it's not strictly necessary for Traefik.
+      #
+      # I'd recommend removing the direct mapping of 8043 and 8843 to the host,
+      # as Traefik will handle 443 for HTTPS.
+      # Only keep the ports necessary for device adoption etc.
+      # Example: if devices connect to 29810/udp from outside the server.
+      
+      # - "8088:8088" # Traefik routes to this internally, no need to expose to host
+      # - "8043:8043" # Traefik handles 443, no need for this
+      # - "8843:8843" # Traefik handles 443, no need for this
+
+      - "27001:27001/udp"   # Device discovery
+      - "29810:29810/udp"   # Device discovery
+      - "29811:29811"       # Controller management (used by devices)
+      - "29812:29812"       # Adoption V1 (used by devices)
+      - "29813:29813"       # Upgrade V1 (used by devices)
+      - "29814:29814"       # Controller management V2 (used by devices)
+      - "29815:29815"       # Transfer V2 (used by devices)
+      - "29816:29816"       # RTTY (used by devices)
+      
+    volumes:
+      - omada-data:/opt/tplink/EAPController/data
+      - omada-logs:/opt/tplink/EAPController/logs
+
+volumes:
+  omada-data: null # Dokploy typically expects 'null' here if it manages volumes
+  omada-logs: null # Dokploy typically expects 'null' here if it manages volumes
