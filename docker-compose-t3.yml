@@ -11,20 +11,15 @@ services:
     environment:
       - PUID=508
       - PGID=508
-      - MANAGE_HTTP_PORT=8088      # Keep this, Omada needs it internally
-      - MANAGE_HTTPS_PORT=8043     # IMPORTANT: Omada will serve HTTPS here internally
+      - MANAGE_HTTP_PORT=8088
+      - MANAGE_HTTPS_PORT=8043
       - PORTAL_HTTP_PORT=8088
       - PORTAL_HTTPS_PORT=8843
-      - PORT_REDIRECT_DISABLED=true # Keep this, might mitigate some internal redirects
-      # ... (rest of environment variables unchanged)
-      - SSL_CERT_NAME=tls.crt      # Omada will use its self-signed cert on 8043
+      - PORT_REDIRECT_DISABLED=true
+      - SSL_CERT_NAME=tls.crt
       - SSL_KEY_NAME=tls.key
       - TZ=Etc/UTC
     ports:
-      # Do NOT expose 8043 to the host if only Traefik is meant to access it.
-      # Traefik will connect directly to the container's 8043 port on the internal Docker network.
-      #
-      # Keep other non-web ports for device communication.
       - 27001:27001/udp
       - 29810:29810/udp
       - '29811:29811'
@@ -37,31 +32,29 @@ services:
       - omada-data:/opt/tplink/EAPController/data
       - omada-logs:/opt/tplink/EAPController/logs
     labels:
+      # Define ALL Traefik labels exactly as you want them
+      # This should be the *only* set of Traefik labels present
       - traefik.docker.network=dokploy-network
-      - traefik.enable=true # Ensure Traefik is enabled for this service
+      - traefik.enable=true # Keep this enabled
 
-      # === HTTP Router (Port 80) for Redirect ===
-      - traefik.http.routers.makerusa-omada-cbr3cx-9-web.rule=Host(`omada.makerusa.net`)
-      - traefik.http.routers.makerusa-omada-cbr3cx-9-web.entrypoints=web
-      - traefik.http.routers.makerusa-omada-cbr3cx-9-web.middlewares=redirect-to-https@file # This is good!
+      # HTTP Router: Redirect to HTTPS
+      - traefik.http.routers.omada-web-http.rule=Host(`omada.makerusa.net`)
+      - traefik.http.routers.omada-web-http.entrypoints=web
+      - traefik.http.routers.omada-web-http.middlewares=redirect-to-https@file # Use Dokploy's file middleware
 
-      # === HTTPS Router (Port 443) ===
-      - traefik.http.routers.makerusa-omada-cbr3cx-9-websecure.rule=Host(`omada.makerusa.net`)
-      - traefik.http.routers.makerusa-omada-cbr3cx-9-websecure.entrypoints=websecure
-      - traefik.http.routers.makerusa-omada-cbr3cx-9-websecure.tls=true # Enable TLS
-      - traefik.http.routers.makerusa-omada-cbr3cx-9-websecure.tls.certresolver=letsencrypt # Your Let's Encrypt resolver
+      # HTTPS Router: Proxy to Omada's internal 8043 (HTTPS)
+      - traefik.http.routers.omada-web-https.rule=Host(`omada.makerusa.net`)
+      - traefik.http.routers.omada-web-https.entrypoints=websecure
+      - traefik.http.routers.omada-web-https.tls=true
+      - traefik.http.routers.omada-web-https.tls.certresolver=letsencrypt # Your resolver
 
-      # --- Service Definitions ---
-      # This service definition is for connections *to Omada's internal HTTPS port*.
-      - traefik.http.services.omada-https-internal.loadbalancer.server.port=8043 
-      # Very important: Tell Traefik to *not* verify the self-signed certificate.
-      # Otherwise, Traefik will complain about the untrusted certificate from Omada.
-      - traefik.http.services.omada-https-internal.loadbalancer.servers.transport=insecure-omada-transport@docker 
-      
-      # Now, connect both routers to this new service
-      - traefik.http.routers.makerusa-omada-cbr3cx-9-web.service=omada-https-internal # Redirected HTTP points here
-      - traefik.http.routers.makerusa-omada-cbr3cx-9-websecure.service=omada-https-internal # HTTPS points here
+      # Service Definition: Points to Omada's internal 8043 (HTTPS) with insecure skip verify
+      - traefik.http.services.omada-internal-https.loadbalancer.server.port=8043
+      - traefik.http.services.omada-internal-https.loadbalancer.servers.transport=insecure-omada-transport@docker # Requires the transport to be defined in Traefik's dynamic config
 
+      # Link routers to the new service
+      - traefik.http.routers.omada-web-http.service=omada-internal-https
+      - traefik.http.routers.omada-web-https.service=omada-internal-https
     networks:
       - dokploy-network
 volumes:
